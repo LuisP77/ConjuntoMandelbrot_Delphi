@@ -1,0 +1,153 @@
+unit Unit1;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, ExtCtrls, Math, ComCtrls;
+
+type
+  TForm1 = class(TForm)
+    Image1: TImage;
+    procedure FormCreate(Sender: TObject);
+    procedure Image1MouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure Image1MouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure Image1MouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  Form1: TForm1;
+  NPixelX, NPixelY, xo, yo, xc, yc : integer;
+  DXmax,DXmin,DYmax,DYmin : real;
+  botónPresionado : boolean;
+const
+  maxIteraciones = 1000;
+implementation
+
+{$R *.dfm}
+
+////////////////////////////////////////////////////////////////////////////////
+procedure CONVERGENCIA(xo,yo:real; var converge: boolean; var N:integer);
+var
+  x,y,xaux : real;
+begin
+  N := 0;
+  x := 0;
+  y := 0;
+  while (x*x + y*y < 4) and (N < maxIteraciones) do begin
+    xaux := x*x - y*y + xo;
+    y := 2*x*y + yo;
+    x := xaux;
+    N := N + 1;
+  end;
+  if N<maxIteraciones then
+    converge := false
+  else
+    converge := true;
+end;
+////////////////////////////////////////////////////////////////////////////////
+function color(iteraciones:integer):byte;
+const
+  factor = 35;
+begin
+  if factor*iteraciones > maxIteraciones then
+    iteraciones := maxIteraciones;
+  result := trunc(255*(maxIteraciones-factor*iteraciones)/maxIteraciones);
+end;
+////////////////////////////////////////////////////////////////////////////////
+procedure ConjuntoMandelbrot(NpixelX,NpixelY:integer; image : TImage);
+var
+  x,y : real;
+  pixelX,pixelY, iteraciones : integer;
+  converge : boolean;
+begin
+  for pixelX := 0 to NpixelX do
+    for pixelY := 0 to NPixelY do begin
+      x := (DXmax-DXmin)/NpixelX* pixelX + DXmin;
+      y := -(DYmax-DYmin)/NpixelY* pixelY + DYmax;
+      CONVERGENCIA(x,y,converge,iteraciones);
+      if  converge then
+         image.Canvas.Pixels[pixelX,pixelY] := clBlack
+      else
+         image.Canvas.Pixels[pixelX,pixelY] := rgb(0,0,color(iteraciones));
+    end;
+end;
+////////////////////////////////////////////////////////////////////////////////
+procedure InicializaDimensiones();
+begin
+  DXmin := -2.20; DXmax := 0.80;
+  DYmin := -1.5; DYmax := 1.5;
+end;
+////////////////////////////////////////////////////////////////////////////////
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  NPixelX := Image1.Width;
+  NPixelY := Image1.Height;
+  InicializaDimensiones();
+  ConjuntoMandelbrot(NPixelX,NPixelY,Image1);
+  botónPresionado := false;
+end;
+
+procedure TForm1.Image1MouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if Button = mbLeft then begin
+    botónPresionado := true;
+    xo := X;
+    yo := Y;
+  end;
+end;
+
+procedure TForm1.Image1MouseMove(Sender: TObject; Shift: TShiftState; X,
+  Y: Integer);
+begin
+  if botónPresionado then begin
+    Image1.Canvas.DrawFocusRect(rect(xo,yo,xc,yc));
+    Image1.Canvas.DrawFocusRect(rect(xo,yo,X,Y));
+  end;
+  xc:=x;
+  yc:=y;
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+procedure TForm1.Image1MouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  pixelXmax, pixelYmax, pixelXmin,pixelYmin : integer;
+  m, a : real;
+begin
+
+  if (Button = mbRight)or(Button = mbMiddle) then
+    InicializaDimensiones();
+
+  if Button = mbLeft then begin
+
+      pixelXmin := min(xaux,X);
+      pixelXmax := max(xaux,X);
+      pixelYmin := min(yaux,Y);
+      pixelYmax := max(yaux,Y);
+      //pixelYmax := pixelYmin + (pixelXmax - pixelXmin);// para mantener la escala
+
+      m := (DXmax-DXmin)/NpixelX; a := DXmin;
+      DXmin := m * pixelXmin + a;
+      DXmax := m * pixelXmax + a;
+
+      m := -(DYmax-DYmin)/NpixelY; a := DYmax;
+      DYmin := m * pixelYmax + a;
+      DYmax := m * pixelYmin + a;
+
+  end;
+
+//  ConjuntoMandelbrot(NPixelX,NPixelY,Image1);
+
+  botónPresionado := false;
+end;
+
+end.
